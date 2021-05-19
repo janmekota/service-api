@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static com.epam.ta.reportportal.util.MultipartFileUtils.getMultipartFile;
@@ -54,7 +55,7 @@ class FileStorageControllerTest extends BaseMvcTest {
 	@Test
 	void userPhoto() throws Exception {
 		final MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.multipart("/v1/data/photo")
-				.file(new MockMultipartFile("file", new ClassPathResource("image/image.png").getInputStream()))
+				.file(new MockMultipartFile("file", "file", "image/png", new ClassPathResource("image/image.png").getInputStream()))
 				.contentType(MediaType.MULTIPART_FORM_DATA);
 
 		mockMvc.perform(requestBuilder.with(token(oAuthHelper.getDefaultToken()))).andExpect(status().isOk());
@@ -84,6 +85,22 @@ class FileStorageControllerTest extends BaseMvcTest {
 	}
 
 	@Test
+	void cleanAttachmentsByCvsForbidden() throws Exception {
+		final MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.multipart("/v1/data/clean")
+				.file(new MockMultipartFile("file", new ClassPathResource("attachments.csv").getInputStream()))
+				.contentType(MediaType.MULTIPART_FORM_DATA);
+		mockMvc.perform(requestBuilder.with(token(oAuthHelper.getDefaultToken()))).andExpect(status().isForbidden());
+	}
+
+	@Test
+	void cleanAttachmentsByCvs() throws Exception {
+		final MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.multipart("/v1/data/clean")
+				.file(new MockMultipartFile("file", new ClassPathResource("attachments.csv").getInputStream()))
+				.contentType(MediaType.MULTIPART_FORM_DATA);
+		mockMvc.perform(requestBuilder.with(token(oAuthHelper.getSuperadminToken()))).andExpect(status().isOk());
+	}
+
+	@Test
 	void uploadNotImage() throws Exception {
 		final MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.multipart("/v1/data/photo")
 				.file(new MockMultipartFile("file", "text.txt", "text/plain", "test".getBytes(StandardCharsets.UTF_8)))
@@ -97,6 +114,7 @@ class FileStorageControllerTest extends BaseMvcTest {
 	void getFile() throws Exception {
 		AttachmentMetaInfo metaInfo = AttachmentMetaInfo.builder()
 				.withProjectId(1L)
+				.withCreationDate(LocalDateTime.now())
 				.withItemId(1L)
 				.withLaunchId(1L)
 				.withLogId(1L)

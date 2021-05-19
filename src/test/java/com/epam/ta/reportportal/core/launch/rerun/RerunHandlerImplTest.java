@@ -17,10 +17,9 @@
 package com.epam.ta.reportportal.core.launch.rerun;
 
 import com.epam.ta.reportportal.commons.ReportPortalUser;
-import com.epam.ta.reportportal.core.events.MessageBus;
-import com.epam.ta.reportportal.core.events.activity.LaunchStartedEvent;
 import com.epam.ta.reportportal.core.item.identity.TestCaseHashGenerator;
 import com.epam.ta.reportportal.core.item.identity.UniqueIdGenerator;
+import com.epam.ta.reportportal.core.item.impl.retry.RetriesHandler;
 import com.epam.ta.reportportal.dao.LaunchRepository;
 import com.epam.ta.reportportal.dao.TestItemRepository;
 import com.epam.ta.reportportal.entity.enums.StatusEnum;
@@ -36,7 +35,6 @@ import com.epam.ta.reportportal.ws.model.attribute.ItemAttributesRQ;
 import com.epam.ta.reportportal.ws.model.item.ItemCreatedRS;
 import com.epam.ta.reportportal.ws.model.launch.Mode;
 import com.epam.ta.reportportal.ws.model.launch.StartLaunchRQ;
-import com.epam.ta.reportportal.ws.model.launch.StartLaunchRS;
 import com.google.common.collect.Sets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,10 +68,10 @@ class RerunHandlerImplTest {
 	private TestCaseHashGenerator testCaseHashGenerator;
 
 	@Mock
-	private MessageBus messageBus;
+	private ApplicationEventPublisher eventPublisher;
 
 	@Mock
-	private ApplicationEventPublisher eventPublisher;
+	private RetriesHandler retriesHandler;
 
 	@InjectMocks
 	private RerunHandlerImpl rerunHandler;
@@ -128,11 +126,10 @@ class RerunHandlerImplTest {
 
 		when(launchRepository.findLatestByNameAndProjectId("launch", projectId)).thenReturn(Optional.of(getLaunch("uuid")));
 
-		StartLaunchRS response = rerunHandler.handleLaunch(request, projectId, rpUser);
+		final Launch launch = rerunHandler.handleLaunch(request, projectId, rpUser);
 
-		verify(messageBus, times(1)).publishActivity(any(LaunchStartedEvent.class));
-		assertNotNull(response.getNumber());
-		assertNotNull(response.getId());
+		assertNotNull(launch.getNumber());
+		assertNotNull(launch.getId());
 
 	}
 
@@ -143,9 +140,12 @@ class RerunHandlerImplTest {
 		request.setType("STEP");
 		String itemName = "name";
 		request.setName(itemName);
+		final String testCaseId = "caseId";
+		request.setTestCaseId(testCaseId);
 		Launch launch = getLaunch("uuid");
 
-		when(testItemRepository.findByNameAndLaunchWithoutParents(itemName, launch.getId())).thenReturn(Optional.empty());
+		when(testItemRepository.findLatestIdByTestCaseHashAndLaunchIdWithoutParents(testCaseId.hashCode(), launch.getId())).thenReturn(
+				Optional.empty());
 
 		Optional<ItemCreatedRS> rerunCreatedRS = rerunHandler.handleRootItem(request, launch);
 
@@ -159,11 +159,14 @@ class RerunHandlerImplTest {
 		request.setType("STEP");
 		String itemName = "name";
 		request.setName(itemName);
+		final String testCaseId = "caseId";
+		request.setTestCaseId(testCaseId);
 		Launch launch = getLaunch("uuid");
 
-		when(testItemRepository.findByNameAndLaunchWithoutParents(itemName, launch.getId())).thenReturn(Optional.of(getItem(itemName,
-				launch
-		)));
+		final TestItem item = getItem(itemName, launch);
+		when(testItemRepository.findLatestIdByTestCaseHashAndLaunchIdWithoutParents(testCaseId.hashCode(), launch.getId())).thenReturn(
+				Optional.of(item.getItemId()));
+		when(testItemRepository.findById(item.getItemId())).thenReturn(Optional.of(item));
 
 		Optional<ItemCreatedRS> rerunCreatedRS = rerunHandler.handleRootItem(request, launch);
 
@@ -177,11 +180,14 @@ class RerunHandlerImplTest {
 		request.setType("STEP");
 		String itemName = "name";
 		request.setName(itemName);
+		final String testCaseId = "caseId";
+		request.setTestCaseId(testCaseId);
 		Launch launch = getLaunch("uuid");
 		TestItem parent = new TestItem();
+		parent.setItemId(2L);
 		parent.setPath("1.2");
 
-		when(testItemRepository.findByNameAndLaunchUnderPath(itemName, launch.getId(), parent.getPath())).thenReturn(Optional.empty());
+		when(retriesHandler.findPreviousRetry(eq(launch), any(), eq(parent))).thenReturn(Optional.empty());
 
 		Optional<ItemCreatedRS> rerunCreatedRS = rerunHandler.handleChildItem(request, launch, parent);
 
@@ -195,15 +201,20 @@ class RerunHandlerImplTest {
 		request.setType("STEP");
 		String itemName = "name";
 		request.setName(itemName);
+		final String testCaseId = "caseId";
+		request.setTestCaseId(testCaseId);
 		Launch launch = getLaunch("uuid");
 		TestItem parent = new TestItem();
+		parent.setItemId(2L);
 		parent.setPath("1.2");
 
-		when(testItemRepository.findByNameAndLaunchUnderPath(itemName, launch.getId(), parent.getPath())).thenReturn(Optional.of(getItem(itemName,
-				launch
-		)));
+		final TestItem item = getItem(itemName, launch);
+		when(retriesHandler.findPreviousRetry(eq(launch), any(), eq(parent))).thenReturn(Optional.of(item.getItemId()));
+		when(testItemRepository.findById(item.getItemId())).thenReturn(Optional.of(item));
 
 		Optional<ItemCreatedRS> rerunCreatedRS = rerunHandler.handleChildItem(request, launch, parent);
+
+		verify(retriesHandler, times(1)).handleRetries(any(), any(), any());
 
 		assertTrue(rerunCreatedRS.isPresent());
 	}

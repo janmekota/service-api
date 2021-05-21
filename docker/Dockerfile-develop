@@ -1,6 +1,6 @@
 FROM adoptopenjdk:11-jdk-hotspot-bionic as builder
 
-RUN apt-get update && apt-get upgrade && \
+RUN apt-get update && apt-get upgrade -y && \
     apt-get install ca-certificates git fonts-noto zip -y && \
     rm -rf /var/lib/apt/lists/*
 
@@ -50,7 +50,7 @@ LABEL maintainer="Andrei Varabyeu <andrei_varabyeu@epam.com>"
 LABEL version=${version}
 LABEL description="ReportPortal API Service: Development Version"
 
-RUN apt-get update && apt-get upgrade && \
+RUN apt-get update && apt-get upgrade -y && \
     apt-get install fonts-noto-core -y && \
     rm -rf /var/lib/apt/lists/*
 

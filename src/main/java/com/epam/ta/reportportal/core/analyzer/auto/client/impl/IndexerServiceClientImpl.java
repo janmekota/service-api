@@ -20,6 +20,7 @@ import com.epam.ta.reportportal.core.analyzer.auto.client.IndexerServiceClient;
 import com.epam.ta.reportportal.core.analyzer.auto.client.RabbitMqManagementClient;
 import com.epam.ta.reportportal.core.analyzer.auto.client.model.IndexDefectsUpdate;
 import com.epam.ta.reportportal.core.analyzer.auto.client.model.IndexItemsRemove;
+import com.epam.ta.reportportal.core.analyzer.auto.client.model.IndexLaunchRemove;
 import com.epam.ta.reportportal.ws.model.analyzer.CleanIndexRq;
 import com.epam.ta.reportportal.ws.model.analyzer.IndexLaunch;
 import com.epam.ta.reportportal.ws.model.analyzer.IndexRs;
@@ -48,6 +49,7 @@ public class IndexerServiceClientImpl implements IndexerServiceClient {
 	private static final String INDEX_ROUTE = "index";
 	static final String DEFECT_UPDATE_ROUTE = "defect_update";
 	static final String ITEM_REMOVE_ROUTE = "item_remove";
+	static final String LAUNCH_REMOVE_ROUTE = "launch_remove";
 	private static final String NAMESPACE_FINDER_ROUTE = "namespace_finder";
 	static final String DELETE_ROUTE = "delete";
 	private static final String CLEAN_ROUTE = "clean";
@@ -96,13 +98,39 @@ public class IndexerServiceClientImpl implements IndexerServiceClient {
 	}
 
 	@Override
-	public void indexItemsRemove(Long projectId, List<Long> itemsForIndexRemove) {
+	public Integer indexItemsRemove(Long projectId, Collection<Long> itemsForIndexRemove) {
+		return rabbitMqManagementClient.getAnalyzerExchangesInfo()
+				.stream()
+				.filter(DOES_SUPPORT_INDEX)
+				.map(exchange -> ofNullable(rabbitTemplate.convertSendAndReceiveAsType(exchange.getName(),
+						ITEM_REMOVE_ROUTE,
+						new IndexItemsRemove(projectId, itemsForIndexRemove),
+						new ParameterizedTypeReference<Integer>() {
+						}
+				)).orElse(0))
+				.mapToInt(Integer::intValue)
+				.sum();
+	}
+
+	@Override
+	public void indexItemsRemoveAsync(Long projectId, Collection<Long> itemsForIndexRemove) {
 		rabbitMqManagementClient.getAnalyzerExchangesInfo()
 				.stream()
 				.filter(DOES_SUPPORT_INDEX)
 				.forEach(exchange -> rabbitTemplate.convertAndSend(exchange.getName(),
 						ITEM_REMOVE_ROUTE,
 						new IndexItemsRemove(projectId, itemsForIndexRemove)
+				));
+	}
+
+	@Override
+	public void indexLaunchesRemove(Long projectId, Collection<Long> launchesForIndexRemove) {
+		rabbitMqManagementClient.getAnalyzerExchangesInfo()
+				.stream()
+				.filter(DOES_SUPPORT_INDEX)
+				.forEach(exchange -> rabbitTemplate.convertAndSend(exchange.getName(),
+						LAUNCH_REMOVE_ROUTE,
+						new IndexLaunchRemove(projectId, launchesForIndexRemove)
 				));
 	}
 
@@ -114,7 +142,7 @@ public class IndexerServiceClientImpl implements IndexerServiceClient {
 						exchange -> rabbitTemplate.convertSendAndReceiveAsType(exchange.getName(),
 								CLEAN_ROUTE,
 								new CleanIndexRq(index, ids),
-								new ParameterizedTypeReference<Long>() {
+								new ParameterizedTypeReference<>() {
 								}
 						)
 				));

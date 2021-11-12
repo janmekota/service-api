@@ -32,7 +32,6 @@ import com.epam.ta.reportportal.dao.IssueEntityRepository;
 import com.epam.ta.reportportal.dao.LaunchRepository;
 import com.epam.ta.reportportal.dao.LogRepository;
 import com.epam.ta.reportportal.dao.TestItemRepository;
-import com.epam.ta.reportportal.entity.enums.LogLevel;
 import com.epam.ta.reportportal.entity.enums.StatusEnum;
 import com.epam.ta.reportportal.entity.item.TestItem;
 import com.epam.ta.reportportal.entity.item.TestItemResults;
@@ -41,6 +40,7 @@ import com.epam.ta.reportportal.entity.item.issue.IssueType;
 import com.epam.ta.reportportal.entity.launch.Launch;
 import com.epam.ta.reportportal.entity.user.UserRole;
 import com.epam.ta.reportportal.exception.ReportPortalException;
+import com.epam.ta.reportportal.jooq.enums.JStatusEnum;
 import com.epam.ta.reportportal.ws.converter.builders.TestItemBuilder;
 import com.epam.ta.reportportal.ws.converter.converters.IssueConverter;
 import com.epam.ta.reportportal.ws.model.FinishTestItemRQ;
@@ -99,8 +99,6 @@ class FinishTestItemHandlerImpl implements FinishTestItemHandler {
 
 	private final IssueEntityRepository issueEntityRepository;
 
-	private final LogRepository logRepository;
-
 	private final LaunchRepository launchRepository;
 
 	private final ChangeStatusHandler changeStatusHandler;
@@ -118,8 +116,7 @@ class FinishTestItemHandlerImpl implements FinishTestItemHandler {
 	FinishTestItemHandlerImpl(TestItemRepository testItemRepository, IssueTypeHandler issueTypeHandler,
 			@Qualifier("finishTestItemHierarchyHandler") FinishHierarchyHandler<TestItem> finishHierarchyHandler, LogIndexer logIndexer,
 			Map<StatusEnum, StatusChangingStrategy> statusChangingStrategyMapping, IssueEntityRepository issueEntityRepository,
-			LogRepository logRepository, ChangeStatusHandler changeStatusHandler, ApplicationEventPublisher eventPublisher,
-			LaunchRepository launchRepository,
+			ChangeStatusHandler changeStatusHandler, ApplicationEventPublisher eventPublisher, LaunchRepository launchRepository,
 			@Qualifier("uniqueIdRetrySearcher") RetrySearcher retrySearcher, RetryHandler retryHandler, MessageBus messageBus,
 			ExternalTicketHandler externalTicketHandler) {
 		this.testItemRepository = testItemRepository;
@@ -128,7 +125,6 @@ class FinishTestItemHandlerImpl implements FinishTestItemHandler {
 		this.logIndexer = logIndexer;
 		this.statusChangingStrategyMapping = statusChangingStrategyMapping;
 		this.issueEntityRepository = issueEntityRepository;
-		this.logRepository = logRepository;
 		this.launchRepository = launchRepository;
 		this.changeStatusHandler = changeStatusHandler;
 		this.eventPublisher = eventPublisher;
@@ -283,29 +279,30 @@ class FinishTestItemHandlerImpl implements FinishTestItemHandler {
 	private TestItemResults processChildItemResult(TestItem testItem, FinishTestItemRQ finishTestItemRQ, ReportPortalUser user,
 			ReportPortalUser.ProjectDetails projectDetails, Launch launch) {
 		TestItemResults testItemResults = testItem.getItemResults();
-		Optional<StatusEnum> actualStatus = fromValue(finishTestItemRQ.getStatus());
+		StatusEnum actualStatus = fromValue(finishTestItemRQ.getStatus()).orElse(INTERRUPTED);
 		Optional<IssueEntity> resolvedIssue = resolveIssue(user,
-				actualStatus.orElse(INTERRUPTED),
+				actualStatus,
 				testItem,
 				finishTestItemRQ.getIssue(),
 				projectDetails.getProjectId()
 		);
 
 		if (testItemResults.getStatus() == IN_PROGRESS) {
-			testItemResults.setStatus(actualStatus.orElse(INTERRUPTED));
+			testItemResults.setStatus(actualStatus);
 			resolvedIssue.ifPresent(issue -> updateItemIssue(testItemResults, issue));
-			if (Objects.isNull(testItem.getRetryOf())) {
+			ofNullable(testItem.getRetryOf()).ifPresentOrElse(retryOf -> {
+			}, () -> {
 				changeStatusHandler.changeParentStatus(testItem, projectDetails.getProjectId(), user);
 				changeStatusHandler.changeLaunchStatus(launch);
-			}
+				if (testItem.isHasRetries()) {
+					retryHandler.finishRetries(testItem.getItemId(),
+							JStatusEnum.valueOf(actualStatus.name()),
+							TO_LOCAL_DATE_TIME.apply(finishTestItemRQ.getEndTime())
+					);
+				}
+			});
 		} else {
-			updateFinishedItem(testItemResults,
-					actualStatus.orElse(INTERRUPTED),
-					resolvedIssue,
-					testItem,
-					user,
-					projectDetails.getProjectId()
-			);
+			updateFinishedItem(testItemResults, actualStatus, resolvedIssue, testItem, user, projectDetails.getProjectId());
 		}
 
 		testItem.getAttributes()
@@ -384,11 +381,8 @@ class FinishTestItemHandlerImpl implements FinishTestItemHandler {
 
 	private void deleteOldIssueIndex(StatusEnum actualStatus, TestItem testItem, TestItemResults testItemResults, Long projectId) {
 		if (actualStatus == PASSED || ITEM_CAN_BE_INDEXED.test(testItem)) {
-			ofNullable(testItemResults.getIssue()).ifPresent(issue -> logIndexer.cleanIndex(projectId,
-					logRepository.findIdsUnderTestItemByLaunchIdAndTestItemIdsAndLogLevelGte(testItem.getLaunchId(),
-							Collections.singletonList(testItem.getItemId()),
-							LogLevel.ERROR.toInt()
-					)
+			ofNullable(testItemResults.getIssue()).ifPresent(issue -> logIndexer.indexItemsRemoveAsync(projectId,
+					Collections.singletonList(testItem.getItemId())
 			));
 		}
 	}

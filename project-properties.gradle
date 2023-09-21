@@ -1,7 +1,7 @@
 sourceCompatibility = JavaVersion.VERSION_11
 targetCompatibility = JavaVersion.VERSION_11
 
-def commonScriptsUrl = 'https://raw.githubusercontent.com/reportportal/gradle-scripts/'
+def commonScriptsUrl = 'https://raw.githubusercontent.com/janmekota/gradle-scripts/'
 def migrationsScriptsUrl = 'https://raw.githubusercontent.com/reportportal/migrations/'
 
 project.ext {
@@ -17,8 +17,8 @@ project.ext {
     ]
     isDebugMode = System.getProperty("DEBUG", "false") == "true"
     releaseMode = project.hasProperty("releaseMode")
-    scriptsUrl = commonScriptsUrl + (releaseMode ? getProperty('scripts.version') : 'develop')
-    migrationsUrl = migrationsScriptsUrl + (releaseMode ? getProperty('migrations.version') : 'develop')
+    scriptsUrl = commonScriptsUrl + (releaseMode ? getProperty('scripts.version') : '5.7.0-fix_gitinfo')
+    migrationsUrl = migrationsScriptsUrl + (releaseMode ? getProperty('migrations.version') : '5.7.3')
     //TODO refactor with archive download
     testScriptsSrc = [
             (migrationsUrl + '/migrations/0_extensions.up.sql')                        : 'V001__extensions.sql',

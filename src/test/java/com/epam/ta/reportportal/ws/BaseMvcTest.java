@@ -40,6 +40,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.zonky.test.db.AutoConfigureEmbeddedDatabase;
+
 /**
  * @author <a href="mailto:ihar_kahadouski@epam.com">Ihar Kahadouski</a>
  */
@@ -50,6 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
 @ContextConfiguration(classes = TestConfig.class)
 @TestExecutionListeners(listeners = { FlywayTestExecutionListener.class }, mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @Transactional
+@AutoConfigureEmbeddedDatabase
 public abstract class BaseMvcTest {
 
 	protected static final String DEFAULT_PROJECT_BASE_URL = "/v1/default_personal";

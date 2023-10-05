@@ -81,7 +81,7 @@ dependencies {
         compile 'com.epam.reportportal:commons-fonts'
         compile 'com.epam.reportportal:plugin-api'
     } else {
-        compile 'com.github.reportportal:commons-dao:6f68269e'
+        compile 'com.github.reportportal:commons-dao:5905164fe7bb1a7f85934d25ddf2a4586318aa8d'
         compile 'com.github.reportportal:commons-rules:5.3.0'
         compile 'com.github.reportportal:commons-model:a0479c55'
         compile 'com.github.reportportal:commons:7480d61'
@@ -145,6 +145,7 @@ dependencies {
     //  Tests
     testCompile 'org.springframework.boot:spring-boot-starter-test'
     testCompile 'org.flywaydb.flyway-test-extensions:flyway-spring-test:7.0.0'
+    testCompile 'io.zonky.test:embedded-database-spring-test:2.3.0'
 }
 
 processResources {
@@ -157,6 +158,10 @@ processResources {
 dependencyCheck {
     formats = [ReportGenerator.Format.HTML, ReportGenerator.Format.XML]
 //    cveValidForHours = 1
+}
+
+allprojects {
+    tasks.withType(Javadoc).all { enabled = false }
 }
 
 bootJar {

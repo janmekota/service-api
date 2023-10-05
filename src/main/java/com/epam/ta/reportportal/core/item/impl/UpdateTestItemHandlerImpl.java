@@ -137,7 +137,7 @@ public class UpdateTestItemHandlerImpl implements UpdateTestItemHandler {
 
 		List<String> errors = new ArrayList<>();
 		List<IssueDefinition> definitions = defineIssue.getIssues();
-		expect(CollectionUtils.isEmpty(definitions), equalTo(false)).verify(FAILED_TEST_ITEM_ISSUE_TYPE_DEFINITION);
+		expect(CollectionUtils.isEmpty(definitions), equalTo(false)).verify(FAILED_TEST_ITEM_ISSUE_TYPE_DEFINITION, String.format("defineIssue.getIssues() is empty - defineIssue: %s, project: %s, user: %s", defineIssue, projectDetails.getProjectName(), user.getUsername()));
 		List<Issue> updated = new ArrayList<>(defineIssue.getIssues().size());
 		List<ItemIssueTypeDefinedEvent> events = new ArrayList<>();
 		List<TestItem> itemsForIndexUpdate = new ArrayList<>();

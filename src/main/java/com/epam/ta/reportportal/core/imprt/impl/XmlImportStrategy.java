@@ -64,7 +64,7 @@ public class XmlImportStrategy extends AbstractImportStrategy {
 			return launchId;
 		} catch (Exception e) {
 			updateBrokenLaunch(savedLaunchId);
-			throw new ReportPortalException(ErrorType.IMPORT_FILE_ERROR, cleanMessage(e));
+			throw new ReportPortalException(ErrorType.IMPORT_FILE_ERROR, String.format("project: %s, user: %s, baseUrl: %s ", projectDetails.getProjectName(), user.getUsername(), baseUrl) + cleanMessage(e));
 		}
 	}
 }

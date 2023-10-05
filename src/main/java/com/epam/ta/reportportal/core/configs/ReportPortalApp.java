@@ -15,12 +15,19 @@
  */
 package com.epam.ta.reportportal.core.configs;
 
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.servlet.MultipartAutoConfiguration;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.ConsoleAppender;
 
 /**
  * Application Entry Point
@@ -34,6 +41,20 @@ import org.springframework.context.annotation.Import;
 public class ReportPortalApp {
 
 	public static void main(String[] args) {
+		Logger log = (Logger) LoggerFactory.getLogger(ReportPortalApp.class);
+		LoggerContext loggerContext = log.getLoggerContext();
+		loggerContext.reset();
+		PatternLayoutEncoder encoder = new PatternLayoutEncoder();
+		encoder.setContext(loggerContext);
+		encoder.setPattern("%d{yyyy-MM-dd' 'HH:mm:ss.SSS} %5p " + ProcessHandle.current().pid() + " --- [%15.15t] %-40.40logger{39} : %m%n");
+		encoder.start();
+		ConsoleAppender<ILoggingEvent> appender = new ConsoleAppender<>();
+		appender.setContext(loggerContext);
+		appender.setEncoder(encoder);
+		appender.start();
+		log.addAppender(appender);
+		log.info("service-api branch: {}, commit: {}", "5.7.3-2-add-logging", "fca8f461f5d16d9faf0f3835c86ba6d78dd3c538");
+
 		SpringApplication.run(ReportPortalApp.class, args);
 	}
 

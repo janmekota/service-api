@@ -20,6 +20,9 @@ import com.epam.ta.reportportal.auth.util.AuthUtils;
 import com.epam.ta.reportportal.commons.ReportPortalUser;
 import com.epam.ta.reportportal.dao.OAuth2AccessTokenRepository;
 import com.epam.ta.reportportal.entity.user.StoredAccessToken;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -37,6 +40,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Component(value = "combinedTokenStore")
 @Transactional(readOnly = true)
 public class CombinedTokenStore extends JwtTokenStore {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(CombinedTokenStore.class);
 
 	@Autowired
 	private OAuth2AccessTokenRepository oAuth2AccessTokenRepository;
@@ -65,18 +70,23 @@ public class CombinedTokenStore extends JwtTokenStore {
 		} catch (InvalidTokenException e) {
 			StoredAccessToken accessToken = oAuth2AccessTokenRepository.findByTokenId(tokenId);
 			ReportPortalUser userDetails = (ReportPortalUser) userDetailsService.loadUserByUsername(accessToken.getUserName());
-			OAuth2Authentication authentication = AuthUtils.deserializeSafely(accessToken.getAuthentication(), auth -> {
-				// if we are at the place, there was InvalidClassException,
-				// and we successfully recovered auth object
-				// let's save it back to DB then, since now it has correct version UUID
-				accessToken.setAuthentication(SerializationUtils.serialize(auth));
-				oAuth2AccessTokenRepository.save(accessToken);
-			});
+			try {
+				OAuth2Authentication authentication = AuthUtils.deserializeSafely(accessToken.getAuthentication(), auth -> {
+					// if we are at the place, there was InvalidClassException,
+					// and we successfully recovered auth object
+					// let's save it back to DB then, since now it has correct version UUID
+					accessToken.setAuthentication(SerializationUtils.serialize(auth));
+					oAuth2AccessTokenRepository.save(accessToken);
+				});
 
-			ReportPortalUser reportPortalUser = (ReportPortalUser) authentication.getPrincipal();
-			reportPortalUser.setProjectDetails(userDetails.getProjectDetails());
-			reportPortalUser.setUserRole(userDetails.getUserRole());
-			return authentication;
+				ReportPortalUser reportPortalUser = (ReportPortalUser) authentication.getPrincipal();
+				reportPortalUser.setProjectDetails(userDetails.getProjectDetails());
+				reportPortalUser.setUserRole(userDetails.getUserRole());
+				return authentication;
+			} catch (Exception exception) {
+				LOGGER.error("AuthUtils.deserializeSafely failed. Username: {}, accessToken: {}", accessToken.getUserName(), accessToken);
+				throw exception;
+			}
 		}
 	}
 

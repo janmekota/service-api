@@ -120,6 +120,7 @@ public abstract class AbstractImportStrategy implements ImportStrategy {
 					.orElseThrow(() -> new ReportPortalException(ErrorType.LAUNCH_NOT_FOUND));
 			launch.setStartTime(LocalDateTime.now());
 			launch.setStatus(StatusEnum.INTERRUPTED);
+			LOGGER.warn("Status interrupted: Updating broken launch with status INTERRUPTED. Launch id: {}", launch.getId());
 			launchRepository.save(launch);
 		}
 	}

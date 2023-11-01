@@ -138,6 +138,7 @@ public class InterruptBrokenLaunchesJob implements Job {
 		launchRepository.findById(launchId).ifPresent(launch -> {
 			launch.setStatus(StatusEnum.INTERRUPTED);
 			launch.setEndTime(LocalDateTime.now(ZoneOffset.UTC));
+			LOGGER.warn("Status interrupted: Interrupting launch {}", launchId);
 			launchRepository.save(launch);
 			publishFinishEvent(launch);
 		});

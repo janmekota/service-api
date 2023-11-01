@@ -29,9 +29,12 @@ import com.epam.ta.reportportal.entity.enums.StatusEnum;
 import com.epam.ta.reportportal.entity.item.TestItem;
 import com.epam.ta.reportportal.entity.item.issue.IssueEntity;
 import com.epam.ta.reportportal.entity.item.issue.IssueType;
+import com.epam.ta.reportportal.entity.launch.Launch;
 import com.epam.ta.reportportal.job.PageUtil;
 import com.epam.ta.reportportal.jooq.enums.JStatusEnum;
 import org.apache.commons.lang3.BooleanUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
@@ -54,6 +57,8 @@ import static java.util.Optional.ofNullable;
  * @author <a href="mailto:ivan_budayeu@epam.com">Ivan Budayeu</a>
  */
 public abstract class AbstractFinishHierarchyHandler<T> implements FinishHierarchyHandler<T> {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFinishHierarchyHandler.class);
 
 	public static final int ITEM_PAGE_SIZE = 50;
 
@@ -105,6 +110,18 @@ public abstract class AbstractFinishHierarchyHandler<T> implements FinishHierarc
 	@Override
 	public int finishDescendants(T parentEntity, StatusEnum status, Date endDate, ReportPortalUser user,
 			ReportPortalUser.ProjectDetails projectDetails) {
+
+		if (status.equals(INTERRUPTED)) {
+			Long launchId;
+			if (parentEntity instanceof Launch) {
+				launchId = ((Launch) parentEntity).getId();
+			} else if (parentEntity instanceof TestItem) {
+				launchId = ((TestItem) parentEntity).getLaunchId();
+			} else {
+				launchId = null;
+			}
+			LOGGER.warn("Status interrupted: Finishing descendants with status INTERRUPTED. Launch id: {}", launchId);
+		}
 
 		expect(status, s -> s != IN_PROGRESS).verify(INCORRECT_REQUEST, "Unable to update current status to - " + IN_PROGRESS);
 
@@ -211,6 +228,7 @@ public abstract class AbstractFinishHierarchyHandler<T> implements FinishHierarc
 		interruptedAttribute.setTestItem(testItem);
 		testItem.getAttributes().add(interruptedAttribute);
 		if (testItem.isHasRetries()) {
+			LOGGER.warn("Status interrupted: Finishing item with adding attribute status:interrupted. Launch id: {}, testItem id: {}", testItem.getLaunchId(), testItem.getItemId());
 			retryHandler.finishRetries(testItem.getItemId(), JStatusEnum.valueOf(status.name()), endTime);
 		}
 	}

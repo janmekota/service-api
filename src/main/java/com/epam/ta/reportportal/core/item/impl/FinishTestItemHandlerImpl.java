@@ -50,6 +50,8 @@ import com.google.common.collect.Lists;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
@@ -85,6 +87,8 @@ import static java.util.Optional.ofNullable;
 @Primary
 @Transactional
 class FinishTestItemHandlerImpl implements FinishTestItemHandler {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(FinishTestItemHandlerImpl.class);
 
 	private final TestItemRepository testItemRepository;
 
@@ -279,6 +283,9 @@ class FinishTestItemHandlerImpl implements FinishTestItemHandler {
 			ReportPortalUser.ProjectDetails projectDetails, Launch launch) {
 		TestItemResults testItemResults = testItem.getItemResults();
 		StatusEnum actualStatus = fromValue(finishTestItemRQ.getStatus()).orElse(INTERRUPTED);
+		if (actualStatus.equals(INTERRUPTED)) {
+			LOGGER.warn("Status interrupted: Processing child item result with status INTERRUPTED. Launch id: {}", launch.getId());
+		}
 		Optional<IssueEntity> resolvedIssue = resolveIssue(user,
 				actualStatus,
 				testItem,

@@ -1,57 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration scan="true">
+<configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
-        </encoder>
-    </appender>
+    <springProperty name="logging.level.root" scope="context" source="logging.level.root" defaultValue="INFO" />
 
-    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
-        <neverBlock>true</neverBlock>
-        <appender-ref ref="CONSOLE"/>
-    </appender>
-
-    <appender name="FILE_AUDIT" class="ch.qos.logback.core.FileAppender">
-        <file>/var/log/reportportal/audit.log</file>
-        <encoder>
-            <pattern>
-                ${FILE_LOG_PATTERN}
-            </pattern>
-        </encoder>
-    </appender>
-
-    <root level="INFO">
-        <appender-ref ref="ASYNC_CONSOLE"/>
-    </root>
-
-    <logger name="com.epam.ta.reportportal.ws.rabbit.ActivityConsumer" level="${AUDIT_LOGGER:-OFF}"
-      additivity="false">
-        <appender-ref ref="FILE_AUDIT"/>
-    </logger>
-
-    <springProfile name="file-logging">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_FILE}</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.log</fileNamePattern>
-                <maxHistory>10</maxHistory>
-                <totalSizeCap>3GB</totalSizeCap>
-            </rollingPolicy>
-
+    <springProfile name="LOCAL">
+        <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>${FILE_LOG_PATTERN}</pattern>
+                <pattern>%level [%d{yyyy-MM-dd HH:mm:ss.SSSX}] [%thread] %logger{128}: %message%n%rEx</pattern>
             </encoder>
         </appender>
-
-        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
-            <neverBlock>true</neverBlock>
-            <appender-ref ref="FILE"/>
-        </appender>
-        <root level="INFO">
-            <appender-ref ref="ASYNC_FILE"/>
+        <root level="${logging.level.root}">
+            <appender-ref ref="stdout" />
         </root>
     </springProfile>
-
+    <springProfile name="!LOCAL">
+        <appender name="jsonstdout" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <fieldName>ts</fieldName>
+                        <pattern>yyyy-MM-dd'T'HH:mm:ss.SSSX</pattern>
+                    </timestamp>
+                    <pattern>
+                        <omitEmptyFields>true</omitEmptyFields>
+                        <pattern>
+                            {
+                            "logLevel": "%level",
+                            "thread": "%thread",
+                            "logger": "%class{128}",
+                            "message": "%message"
+                            }
+                        </pattern>
+                    </pattern>
+                    <stackTrace>
+                        <fieldName>stacktrace</fieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <maxDepthPerThrowable>30</maxDepthPerThrowable>
+                            <maxLength>2048</maxLength>
+                            <shortenedClassNameLength>20</shortenedClassNameLength>
+                            <rootCauseFirst>true</rootCauseFirst>
+                        </throwableConverter>
+                    </stackTrace>
+                </providers>
+            </encoder>
+        </appender>
+        <root level="${logging.level.root}">
+            <appender-ref ref="jsonstdout" />
+        </root>
+    </springProfile>
 </configuration>

@@ -42,6 +42,10 @@
                             <rootCauseFirst>true</rootCauseFirst>
                         </throwableConverter>
                     </stackTrace>
+                    <mdc>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
+                    </mdc>
                 </providers>
             </encoder>
         </appender>

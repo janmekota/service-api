@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/default.xml"/>
+
+    <appender name="access_stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.AccessEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <fieldName>ts</fieldName>
+                    <pattern>yyyy-MM-dd'T'HH:mm:ss.SSSX</pattern>
+                </timestamp>
+                <pattern>
+                    <omitEmptyFields>true</omitEmptyFields>
+                    <pattern>
+                        {
+                        "callerIp" : "%clientHost",
+                        "method" : "%requestMethod",
+                        "protocol": "%protocol",
+                        "path" : "%requestURI",
+                        "code" : "#asLong{%statusCode}" ,
+                        "size" : "#asLong{%bytesSent}",
+                        "latency" : "#asLong{%elapsedTime}",
+                        "agent": "%i{User-Agent}",
+                        "traceId": "#nullNA{%reqAttribute{traceId}}",
+                        "spanId": "#nullNA{%reqAttribute{spanId}}",
+                        "message": "%requestMethod %requestURI %statusCode"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <appender-ref ref="access_stdout"/>
+</configuration>

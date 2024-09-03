@@ -179,6 +179,9 @@ dependencies {
     testImplementation 'org.flywaydb.flyway-test-extensions:flyway-spring-test:9.5.0'
 
     implementation 'org.springframework.cloud:spring-cloud-starter-sleuth'
+    // https://github.com/akkinoc/logback-access-spring-boot-starter/releases/tag/v3.0.0 is the last version supporting Spring Boot 2.5
+    // See https://github.com/akkinoc/logback-access-spring-boot-starter/releases/tag/v3.1.0
+    implementation 'dev.akkinoc.spring.boot:logback-access-spring-boot-starter:3.0.0'
 }
 
 processResources {
